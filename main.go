@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"io/ioutil"
 	"log"
-	"os"
 	"text/template"
+	"unicode"
 
 	hn "github.com/montanaflynn/hn/hnclient"
 )
@@ -73,15 +75,13 @@ func main() {
 	}
 	fillNode(rootStory, client)
 
-	file, err := os.Create(rootStory.By + ".html")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer file.Close()
+	var b bytes.Buffer
 
-	if err := t.ExecuteTemplate(file, "mainStory", rootStory); err != nil {
+	if err := t.ExecuteTemplate(&b, "mainStory", rootStory); err != nil {
 		log.Fatalln(err)
 	}
+	a := StringMinifier(b.String())
+	ioutil.WriteFile(rootStory.By+".html", []byte(a), 0644)
 }
 
 func fillNode(node *Node, client *hn.Client) {
@@ -106,4 +106,20 @@ func ItemToNode(item hn.Item) *Node {
 		Kids: item.Kids,
 	}
 	return node
+}
+
+func StringMinifier(in string) (out string) {
+	white := false
+	for _, c := range in {
+		if unicode.IsSpace(c) {
+			if !white {
+				out = out + " "
+			}
+			white = true
+		} else {
+			out = out + string(c)
+			white = false
+		}
+	}
+	return
 }
