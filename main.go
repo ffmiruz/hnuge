@@ -17,6 +17,7 @@ type Node struct {
 	Time  int
 	Url   string
 	Text  string
+	Level int
 	Kids  []int
 	Nodes []*Node
 }
@@ -33,9 +34,29 @@ var t = template.Must(template.New("").Parse(`
     <title>My title</title>
     <style type="text/css">
 		aside {
-		    border-left: 4px solid red;
-		    padding: 0.01rem 0.8rem;
+		    border-left: 4px solid  #DAF7A6 ;
+		    padding: 0.01rem 0.6rem;
+		    border-bottom: 6px solid white;
 		}
+		article {
+			margin-bottom: 6px;
+		}
+		p{margin: 6px auto;}
+		.\31 {
+        border-left-color:  #581845 ;
+	    }
+	    .\33 {
+	    border-left-color: #C70039; 
+	    }
+	    .\34 {
+	    border-left-color:  #FF5733 ;
+	    }
+	    .\35 {
+	    border-left-color: #FFC300;
+	    }
+	    .\32 {
+	    border-left-color: #900C3F;
+	    }
     </style>
 </head>
 
@@ -47,30 +68,29 @@ var t = template.Must(template.New("").Parse(`
 
 {{define "comments"}}
    {{- if . -}}
-      <article>
       {{range . }}                                  
-         <aside>                                         
+         <aside class="{{.Level}}">                                         
            <div>                                  
              <div class="postTitle"><b>{{.By}}</b></div>   
            </div>
-           <div class="postBody">{{.Text}}</div>
+           <article>{{.Text}}</article>
            {{template "comments" .Nodes}}
          </aside>
       {{end}}
-      </article>
    {{- end -}}
 {{end}}
 `))
 
 func main() {
 	client := hn.NewClient()
-	astory, _ := client.GetItem(22675078)
+	astory, _ := client.GetItem(22685914)
 	rootStory := &Node{
 		Id:    astory.Id,
 		Kids:  astory.Kids,
 		Text:  astory.Title,
 		Url:   astory.Url,
 		By:    astory.By,
+		Level: 0,
 		Nodes: make([]*Node, len(astory.Kids)),
 	}
 	fillNode(rootStory, client)
@@ -89,6 +109,7 @@ func fillNode(node *Node, client *hn.Client) {
 		item, _ := client.GetItem(v)
 
 		node.Nodes[i] = ItemToNode(item)
+		node.Nodes[i].Level = node.Level + 1
 		if len(item.Kids) > 0 {
 			node.Nodes[i].Nodes = make([]*Node, len(item.Kids))
 			fillNode(node.Nodes[i], client)
