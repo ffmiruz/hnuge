@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"log"
+	"sync"
 	"text/template"
 	"unicode"
 
@@ -31,7 +32,7 @@ var t = template.Must(template.New("").Parse(`
     <meta charset="utf-8">
     <meta name="description" content="My description">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My title</title>
+    <title>{{.Text}}</title>
     <style type="text/css">
 		aside {
 		    border-left: 4px solid  #DAF7A6 ;
@@ -83,7 +84,7 @@ var t = template.Must(template.New("").Parse(`
 
 func main() {
 	client := hn.NewClient()
-	astory, _ := client.GetItem(22685914)
+	astory, _ := client.GetItem(22694891)
 	rootStory := &Node{
 		Id:    astory.Id,
 		Kids:  astory.Kids,
@@ -105,15 +106,24 @@ func main() {
 }
 
 func fillNode(node *Node, client *hn.Client) {
+	wg := &sync.WaitGroup{}
+	wg.Add(len(node.Kids))
 	for i, v := range node.Kids {
-		item, _ := client.GetItem(v)
+		go core(i, v, node, client, wg)
 
-		node.Nodes[i] = ItemToNode(item)
-		node.Nodes[i].Level = node.Level + 1
-		if len(item.Kids) > 0 {
-			node.Nodes[i].Nodes = make([]*Node, len(item.Kids))
-			fillNode(node.Nodes[i], client)
-		}
+	}
+	wg.Wait()
+}
+
+func core(i, v int, node *Node, client *hn.Client, wg *sync.WaitGroup) {
+	defer wg.Done()
+	item, _ := client.GetItem(v)
+
+	node.Nodes[i] = ItemToNode(item)
+	node.Nodes[i].Level = node.Level + 1
+	if len(item.Kids) > 0 {
+		node.Nodes[i].Nodes = make([]*Node, len(item.Kids))
+		fillNode(node.Nodes[i], client)
 	}
 }
 
