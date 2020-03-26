@@ -21,26 +21,42 @@ type Node struct {
 
 var t = template.Must(template.New("").Parse(`
 {{define "mainStory"}}
-<div id="post">                                              
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" href="https://via.placeholder.com/70x70">
+    <meta charset="utf-8">
+    <meta name="description" content="My description">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My title</title>
+    <style type="text/css">
+		aside {
+		    border-left: 4px solid red;
+		    padding: 0.01rem 0.8rem;
+		}
+    </style>
+</head>
+
+<body>                                              
   {{.Text}} by {{.By}} 
   {{template "comments" .Nodes}}
-</div>
+</body>
 {{end}}
 
 {{define "comments"}}
-   {{if .}}
-      <ul>
+   {{- if . -}}
+      <article>
       {{range . }}                                  
-         <li class="post">                                         
-           <div class="postHead">                                  
+         <aside>                                         
+           <div>                                  
              <div class="postTitle"><b>{{.By}}</b></div>   
            </div>
            <div class="postBody">{{.Text}}</div>
            {{template "comments" .Nodes}}
-         </li>
+         </aside>
       {{end}}
-      </ul>
-   {{end}}
+      </article>
+   {{- end -}}
 {{end}}
 `))
 
@@ -57,7 +73,7 @@ func main() {
 	}
 	fillNode(rootStory, client)
 
-	file, err := os.Create(rootStory.Url + ".html")
+	file, err := os.Create(rootStory.By + ".html")
 	if err != nil {
 		log.Fatalln(err)
 	}
