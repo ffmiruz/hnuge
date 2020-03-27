@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"log"
+	"strconv"
 	"sync"
 	"text/template"
 	"unicode"
@@ -19,6 +20,7 @@ type Node struct {
 	Url   string
 	Text  string
 	Level int
+	Title string
 	Kids  []int
 	Nodes []*Node
 }
@@ -32,7 +34,7 @@ var t = template.Must(template.New("").Parse(`
     <meta charset="utf-8">
     <meta name="description" content="My description">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Text}}</title>
+    <title>{{.Title}}</title>
     <style type="text/css">
 		aside {
 		    border-left: 4px solid  #DAF7A6 ;
@@ -58,11 +60,15 @@ var t = template.Must(template.New("").Parse(`
 	    .\32 {
 	    border-left-color: #900C3F;
 	    }
+	    code {
+	    	display:block;overflow-x:hidden;
+	    }
     </style>
 </head>
 
-<body>                                              
-  {{.Text}} by {{.By}} 
+<body>
+  <h2>{{.Title}} </h2>
+  {{.Text}} 
   {{template "comments" .Nodes}}
 </body>
 {{end}}
@@ -82,19 +88,21 @@ var t = template.Must(template.New("").Parse(`
 {{end}}
 `))
 
+var client = hn.NewClient()
+
 func main() {
-	client := hn.NewClient()
-	astory, _ := client.GetItem(22694891)
+	astory, _ := client.GetItem(22696377)
 	rootStory := &Node{
 		Id:    astory.Id,
 		Kids:  astory.Kids,
-		Text:  astory.Title,
+		Text:  astory.Text,
 		Url:   astory.Url,
 		By:    astory.By,
+		Title: astory.Title,
 		Level: 0,
 		Nodes: make([]*Node, len(astory.Kids)),
 	}
-	fillNode(rootStory, client)
+	rootStory.fillNode()
 
 	var b bytes.Buffer
 
@@ -102,20 +110,20 @@ func main() {
 		log.Fatalln(err)
 	}
 	a := StringMinifier(b.String())
-	ioutil.WriteFile(rootStory.By+".html", []byte(a), 0644)
+	ioutil.WriteFile(strconv.Itoa(rootStory.Id)+".html", []byte(a), 0644)
 }
 
-func fillNode(node *Node, client *hn.Client) {
+func (node *Node) fillNode() {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(node.Kids))
 	for i, v := range node.Kids {
-		go core(i, v, node, client, wg)
+		go node.getComment(i, v, wg)
 
 	}
 	wg.Wait()
 }
 
-func core(i, v int, node *Node, client *hn.Client, wg *sync.WaitGroup) {
+func (node *Node) getComment(i, v int, wg *sync.WaitGroup) {
 	defer wg.Done()
 	item, _ := client.GetItem(v)
 
@@ -123,7 +131,7 @@ func core(i, v int, node *Node, client *hn.Client, wg *sync.WaitGroup) {
 	node.Nodes[i].Level = node.Level + 1
 	if len(item.Kids) > 0 {
 		node.Nodes[i].Nodes = make([]*Node, len(item.Kids))
-		fillNode(node.Nodes[i], client)
+		node.Nodes[i].fillNode()
 	}
 }
 
