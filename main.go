@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"sync"
 	"text/template"
@@ -25,7 +26,7 @@ type Node struct {
 	Nodes []*Node
 }
 
-var t = template.Must(template.New("").Parse(`
+var tpl = template.Must(template.New("").Parse(`
 {{define "mainStory"}}
 <!DOCTYPE html>
 <html lang="en">
@@ -42,6 +43,10 @@ var t = template.Must(template.New("").Parse(`
 		    border-bottom: 6px solid white;
 		}
 		article {
+			border: 1px solid #e9e9e9;
+		    border-radius: 5px;
+		    box-shadow: 2px 2px 10px #f4f4f4;
+		    padding: 0.5rem;
 			margin-bottom: 6px;
 		}
 		p{margin: 6px auto;}
@@ -63,12 +68,16 @@ var t = template.Must(template.New("").Parse(`
 	    code {
 	    	display:block;overflow-x:hidden;
 	    }
+	    a {
+	    	color:#b00020;
+	    }
     </style>
 </head>
 
 <body>
-  <h2>{{.Title}} </h2>
-  {{.Text}} 
+   <a href="{{.Url}}"><h2>{{.Title}}</h2></a>
+   <div>by  <b>{{.By}}</b></div>
+   {{.Text}}
   {{template "comments" .Nodes}}
 </body>
 {{end}}
@@ -77,10 +86,10 @@ var t = template.Must(template.New("").Parse(`
    {{- if . -}}
       {{range . }}                                  
          <aside class="{{.Level}}">                                         
-           <div>                                  
-             <div class="postTitle"><b>{{.By}}</b></div>   
-           </div>
-           <article>{{.Text}}</article>
+           <article>
+           <div class="postTitle"><b>{{.By}}</b></div>
+           {{.Text}}
+           </article>
            {{template "comments" .Nodes}}
          </aside>
       {{end}}
@@ -91,7 +100,15 @@ var t = template.Must(template.New("").Parse(`
 var client = hn.NewClient()
 
 func main() {
-	astory, _ := client.GetItem(22696377)
+	if len(os.Args) != 2 {
+		log.Fatalln("Usage:", os.Args[0], "ITEM_ID")
+	}
+	id, _ := strconv.Atoi(os.Args[1])
+
+	astory, err := client.GetItem(id)
+	if err != nil {
+		log.Println("Failed to fetch a story")
+	}
 	rootStory := &Node{
 		Id:    astory.Id,
 		Kids:  astory.Kids,
@@ -106,10 +123,10 @@ func main() {
 
 	var b bytes.Buffer
 
-	if err := t.ExecuteTemplate(&b, "mainStory", rootStory); err != nil {
+	if err := tpl.ExecuteTemplate(&b, "mainStory", rootStory); err != nil {
 		log.Fatalln(err)
 	}
-	a := StringMinifier(b.String())
+	a := minifier(b.String())
 	ioutil.WriteFile(strconv.Itoa(rootStory.Id)+".html", []byte(a), 0644)
 }
 
@@ -127,7 +144,7 @@ func (node *Node) getComment(i, v int, wg *sync.WaitGroup) {
 	defer wg.Done()
 	item, _ := client.GetItem(v)
 
-	node.Nodes[i] = ItemToNode(item)
+	node.Nodes[i] = itemToNode(item)
 	node.Nodes[i].Level = node.Level + 1
 	if len(item.Kids) > 0 {
 		node.Nodes[i].Nodes = make([]*Node, len(item.Kids))
@@ -135,7 +152,7 @@ func (node *Node) getComment(i, v int, wg *sync.WaitGroup) {
 	}
 }
 
-func ItemToNode(item hn.Item) *Node {
+func itemToNode(item hn.Item) *Node {
 	node := &Node{
 		By:   item.By,
 		Id:   item.Descendants,
@@ -147,13 +164,16 @@ func ItemToNode(item hn.Item) *Node {
 	return node
 }
 
-func StringMinifier(in string) (out string) {
+func minifier(in string) (out string) {
 	white := false
 	for _, c := range in {
 		if unicode.IsSpace(c) {
 			if !white {
 				out = out + " "
 			}
+			white = true
+		} else if '>' == c {
+			out = out + string(c)
 			white = true
 		} else {
 			out = out + string(c)
