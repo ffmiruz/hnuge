@@ -49,7 +49,7 @@ var tpl = template.Must(template.New("").Parse(`
 		    padding: 0.5rem;
 			margin-bottom: 6px;
 		}
-		p{margin: 6px auto;}
+		p{margin: 5px auto;}
 		.\31 {
         border-left-color:  #581845 ;
 	    }
@@ -71,13 +71,18 @@ var tpl = template.Must(template.New("").Parse(`
 	    a {
 	    	color:#b00020;
 	    }
+	    .by{font-style:italic}
     </style>
 </head>
 
 <body>
+  <header>
+  <div>by  <b>{{.By}}</b></div>
    <a href="{{.Url}}"><h2>{{.Title}}</h2></a>
-   <div>by  <b>{{.By}}</b></div>
-   {{.Text}}
+   {{if .Text}}
+   <article>{{.Text}}</article>
+   {{end}}
+  </header>
   {{template "comments" .Nodes}}
 </body>
 {{end}}
@@ -86,10 +91,8 @@ var tpl = template.Must(template.New("").Parse(`
    {{- if . -}}
       {{range . }}                                  
          <aside class="{{.Level}}">                                         
-           <article>
-           <div class="postTitle"><b>{{.By}}</b></div>
+           <div class="by"><b>{{.By}}</b></div>
            {{.Text}}
-           </article>
            {{template "comments" .Nodes}}
          </aside>
       {{end}}
